@@ -180,8 +180,22 @@ def convertDICOMVolumeToVTKFile(
 
     # Write file #
     writer.Write()
-    del volumeData
     del writer
+
+    # Hotfix of direction matrix, waiting for python wheel for VTK MR 10593 #
+    if file_extension == ALLOWED_EXTENSIONS.vtkjs:
+        import json
+        index_filename = os.path.join(output_file_path, 'index.json')
+        with open(index_filename, 'r') as f:
+            base_json_obj = json.load(f)
+        if not 'direction' in base_json_obj:
+            direction = volumeData.GetDirectionMatrix().GetData()
+            transposed_direction = [direction[i] for i in [0, 3, 6, 1, 4, 7, 2, 5, 8]]
+            base_json_obj['direction'] = transposed_direction
+            with open(index_filename, 'w') as f:
+                f.write(json.dumps(base_json_obj, indent=2))
+
+    del volumeData
 
     if file_extension == ALLOWED_EXTENSIONS.vtkjs and (compress or convert_12_bits):
         data_path = os.path.join(output_file_path, 'data')
